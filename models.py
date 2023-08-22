@@ -12,3 +12,8 @@ class UserCreate(BaseModel):
     email: EmailStr
     age: Union[conint(gt=0), None] = None
     is_subscribed: Union[bool, None] = None
+
+
+class User(BaseModel):
+    name: str
+    password: str
