@@ -1,5 +1,5 @@
 from pydantic import BaseModel, conint, EmailStr
-from typing import Union
+from typing import Union, Optional
 
 
 class Feedback(BaseModel):
@@ -17,3 +17,4 @@ class UserCreate(BaseModel):
 class User(BaseModel):
     username: str
     password: str
+    role: Optional[str] = None
