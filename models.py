@@ -18,3 +18,9 @@ class User(BaseModel):
     username: str
     password: str
     role: Optional[str] = None
+
+
+class Todo(BaseModel):
+    title: str
+    description: str
+    completed: Union[bool, None] = None

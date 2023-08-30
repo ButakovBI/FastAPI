@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta
-from fastapi import FastAPI, Cookie, HTTPException, Request, Depends, status
+
+import uvicorn
+from fastapi import FastAPI, Cookie, HTTPException, Request, Depends, status, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import Annotated
 import re
 import jwt
 from data import *
-from models import Feedback
+from models import Feedback, Todo
+from db.tools import SqliteTools
 
 app = FastAPI(
     title="New app"
@@ -142,3 +145,40 @@ async def get_headers(request: Request):
         "User-Agent": user_agent,
         "Accept-Language": accept_language
     }
+
+
+@app.get("/todo/{todo_id}", response_model=Todo)
+async def get_todo_list(todo_id: int):
+    todo = SqliteTools.get_todo_by_id(todo_id)
+    if not todo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Todo not found")
+    return todo
+
+
+@app.post("/todo")
+async def create_todo_list(todo_data: Todo):
+    todo = SqliteTools.add_todo(todo_data.title, todo_data.description)
+    return todo
+
+
+@app.put("/todo/{todo_id}")
+async def update_todo_list(todo_id: int, todo_data: Todo):
+    todo = SqliteTools.update_todo_by_id(todo_id, todo_data.title, todo_data.description, todo_data.completed)
+    return todo
+
+
+@app.delete("/todo/{todo_id}")
+async def delete_todo_list(todo_id: int):
+    deleted = SqliteTools.delete_todo_by_id(todo_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Todo not found")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+if __name__ == "__main__":
+    SqliteTools.check_exists_db()
+    uvicorn.run(
+        app="main:app", host="127.0.0.1", port=8000, workers=3, reload=True
+    )
