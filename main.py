@@ -1,18 +1,21 @@
 from datetime import datetime, timedelta
 
-import uvicorn
-from fastapi import FastAPI, Cookie, HTTPException, Request, Depends, status, Response
+from fastapi import FastAPI, Cookie, HTTPException, Request, Depends, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import Annotated
+from databases import Database
 import re
 import jwt
 from data import *
-from models import Feedback, Todo
-from db.tools import SqliteTools
+from models import Feedback, TodoCreate, TodoReturn
+
 
 app = FastAPI(
     title="New app"
 )
+
+DATABASE_URL = "postgresql://postgres:794794@localhost/postgres"
+database = Database(DATABASE_URL)
 
 SECRET_KEY = "abc123xyz456"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -147,38 +150,87 @@ async def get_headers(request: Request):
     }
 
 
-@app.get("/todo/{todo_id}", response_model=Todo)
-async def get_todo_list(todo_id: int):
-    todo = SqliteTools.get_todo_by_id(todo_id)
-    if not todo:
+@app.get("/files/{file_path:path}")
+async def read_file(file_path: str):
+    return {"file_path": file_path}
+
+
+async def create_table():
+    query = ("CREATE TABLE todos (id SERIAL PRIMARY KEY,"
+             "title VARCHAR NOT NULL,"
+             "description VARCHAR,"
+             "completed BOOLEAN);")
+    await database.execute(query)
+
+
+@app.on_event("startup")
+async def startup_database():
+    await database.connect()
+
+
+@app.on_event("shutdown")
+async def shutdown_database():
+    await database.disconnect()
+
+
+@app.post("/create_todo")
+async def create_todo(todo: TodoCreate):
+    query = ("INSERT INTO todos(title, description, completed)"
+             "VALUES (:title, :description, :completed)"
+             "RETURNING id")
+    values = {"title": todo.title, "description": todo.description, "completed": todo.completed}
+    try:
+        todo_id = await database.execute(query=query, values=values)
+        return {**todo.model_dump(), "id": todo_id}
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to create todo")
+
+
+@app.get("/todo/{todo_id}", response_model=TodoReturn)
+async def read_todo(todo_id: int):
+    query = "SELECT * FROM todos WHERE id = :todo_id"
+    values = {"todo_id": todo_id}
+    try:
+        result = await database.fetch_one(query=query, values=values)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Failed to fetch todo from database")
+    if result:
+        return TodoReturn(id=result["id"], title=result["title"],
+                          description=result["description"], completed=result["completed"])
+    else:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Todo not found")
-    return todo
 
 
-@app.post("/todo")
-async def create_todo_list(todo_data: Todo):
-    todo = SqliteTools.add_todo(todo_data.title, todo_data.description)
-    return todo
-
-
-@app.put("/todo/{todo_id}")
-async def update_todo_list(todo_id: int, todo_data: Todo):
-    todo = SqliteTools.update_todo_by_id(todo_id, todo_data.title, todo_data.description, todo_data.completed)
-    return todo
+@app.put("/todo/{todo_id}", response_model=TodoReturn)
+async def update_todo(todo_id: int, todo: TodoCreate):
+    query = "UPDATE todos SET title = :title, description = :description, completed = :completed WHERE id = :id"
+    values = {"id": todo_id, "title": todo.title, "description": todo.description, "completed": todo.completed}
+    try:
+        await database.execute(query=query, values=values)
+        return {**todo.model_dump(), "id": todo_id}
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to update todo in database")
 
 
 @app.delete("/todo/{todo_id}")
-async def delete_todo_list(todo_id: int):
-    deleted = SqliteTools.delete_todo_by_id(todo_id)
-    if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail="Todo not found")
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+async def delete_todo(todo_id: int):
+    query = "DELETE FROM todos WHERE id = :id RETURNING id"
+    values = {"id": todo_id}
+    try:
+        deleted_rows = await database.execute(query=query, values=values)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Failed to delete todo from database")
+    if deleted_rows:
+        return {"message": "Todo deleted successfully"}
+    else:
+        raise HTTPException(status_code=404, detail="Todo not found")
 
 
-if __name__ == "__main__":
-    SqliteTools.check_exists_db()
-    uvicorn.run(
-        app="main:app", host="127.0.0.1", port=8000, workers=3, reload=True
-    )
+# if __name__ == "__main__":
+#     SqliteTools.check_exists_db()
+#     uvicorn.run(
+#         app="main:app", host="127.0.0.1", port=8000, workers=3, reload=True
+#     )

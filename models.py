@@ -7,20 +7,31 @@ class Feedback(BaseModel):
     message: str
 
 
-class UserCreate(BaseModel):
-    name: str
-    email: EmailStr
-    age: Union[conint(gt=0), None] = None
-    is_subscribed: Union[bool, None] = None
-
-
 class User(BaseModel):
     username: str
     password: str
     role: Optional[str] = None
 
 
-class Todo(BaseModel):
+class TodoCreate(BaseModel):
     title: str
     description: str
-    completed: Union[bool, None] = None
+    completed: bool = False
+
+
+class TodoReturn(BaseModel):
+    id: Optional[int] = None
+    title: str
+    description: str
+    completed: bool = False
+
+
+class UserCreate(BaseModel):
+    username: str
+    email: str
+
+
+class UserReturn(BaseModel):
+    username: str
+    email: str
+    id: Optional[int] = None
