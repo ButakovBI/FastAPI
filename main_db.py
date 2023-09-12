@@ -2,6 +2,8 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from databases import Database
 from models import UserCreate, UserReturn
+from db.tools import get_url
+
 
 app = FastAPI()
 

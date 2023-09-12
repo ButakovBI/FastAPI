@@ -8,6 +8,7 @@ class Feedback(BaseModel):
 
 
 class User(BaseModel):
+    Base: str
     username: str
     password: str
     role: Optional[str] = None
