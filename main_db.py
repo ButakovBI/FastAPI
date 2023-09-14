@@ -1,8 +1,8 @@
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from databases import Database
-from models import UserCreate, UserReturn
-from db.tools import get_url
+from models import UserCreate, UserReturn, ErrorResponse
 
 
 app = FastAPI()
@@ -14,9 +14,10 @@ database = Database(DATABASE_URL)
 
 
 async def create_table():
-    sql_query = ("CREATE TABLE users (id SERIAL PRIMARY KEY,"
-                 "username VARCHAR(255) NOT NULL,"
-                 "email VARCHAR(255) NOT NULL);")
+    sql_query = ("CREATE TABLE product (id SERIAL PRIMARY KEY,"
+                 "title VARCHAR(255) NOT NULL,"
+                 "price INTEGER NOT NULL,"
+                 "count INTEGER NOT NULL);")
     await database.execute(sql_query)
 
 
@@ -84,6 +85,47 @@ async def delete_user(user_id: int):
         return {"message": "User deleted successfully"}
     else:
         raise HTTPException(status_code=404, detail="User not found")
+
+
+class CustomException1(HTTPException):
+    def __init__(self, detail: str, status_code: int = 400):
+        super().__init__(detail=detail, status_code=status_code)
+
+
+class CustomException2(HTTPException):
+    def __init__(self):
+        super().__init__(detail="Internal server errorrrrrrr", status_code=500)
+
+
+@app.exception_handler(CustomException1)
+async def custom_exception_1(request: Request, exc: ErrorResponse):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.detail}
+    )
+
+
+@app.exception_handler(CustomException2)
+async def custom_exception_2(request: Request, exc: ErrorResponse):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": exc.detail}
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    return JSONResponse(status_code=500,
+                        content="Internal server error")
+
+
+@app.get("/raise")
+async def get_exception(number: int):
+    if number == 794:
+        raise CustomException1(detail="WOW", status_code=403)
+    if number == 793:
+        raise CustomException2
+    raise Exception
 
 
 if __name__ == "__main__":

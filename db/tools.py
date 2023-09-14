@@ -11,6 +11,7 @@ metadata = MetaData()
 
 class Todo(Base):
     __tablename__ = "todo"
+    metadata = metadata
     id = Column(Integer, primary_key=True)
     title = Column(String)
     description = Column(String)
@@ -19,6 +20,7 @@ class Todo(Base):
 
 class Product(Base):
     __tablename__ = "product"
+    metadata = metadata
     id = Column(Integer, primary_key=True)
     title = Column(String, nullable=False)
     price = Column(Integer, nullable=False)

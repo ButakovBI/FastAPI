@@ -2,6 +2,11 @@ from pydantic import BaseModel, conint, EmailStr
 from typing import Union, Optional
 
 
+class ErrorResponse(BaseModel):
+    status_code: int
+    detail: str
+
+
 class Feedback(BaseModel):
     name: str
     message: str
