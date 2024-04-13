@@ -7,8 +7,7 @@ from models import UserCreate, UserReturn, ErrorResponse
 
 app = FastAPI()
 
-# URL для PostgreSQL (измените его под свою БД)
-DATABASE_URL = "postgresql://postgres:794794@localhost/postgres"
+DATABASE_URL = "postgresql://postgres:test@localhost/postgres"
 
 database = Database(DATABASE_URL)
 
@@ -21,8 +20,6 @@ async def create_table():
     await database.execute(sql_query)
 
 
-# тут устанавливаем условия подключения к базе данных и отключения - можно использовать в роутах
-# контекстный менеджер async with Database(...) as db: etc
 @app.on_event("startup")
 async def startup_database():
     await database.connect()
@@ -33,7 +30,6 @@ async def shutdown_database():
     await database.disconnect()
 
 
-# создание роута для создания юзеров
 @app.post("/users/", response_model=UserReturn)
 async def create_user(user: UserCreate):
     query = "INSERT INTO users (username, email) VALUES (:username, :email) RETURNING id"
@@ -45,7 +41,6 @@ async def create_user(user: UserCreate):
         raise HTTPException(status_code=500, detail=f"Failed to create user")
 
 
-# маршрут для получения информации о юзере по ID
 @app.get("/user/{user_id}", response_model=UserReturn)
 async def get_user(user_id: int):
     query = "SELECT * FROM users WHERE id = :user_id"
@@ -60,7 +55,6 @@ async def get_user(user_id: int):
         raise HTTPException(status_code=404, detail="User not found")
 
 
-# роут для обновления информации о юзере по ID
 @app.put("/user/{user_id}", response_model=UserReturn)
 async def update_user(user_id: int, user: UserCreate):
     query = "UPDATE users SET username = :username, email = :email WHERE id = :user_id"
@@ -72,7 +66,6 @@ async def update_user(user_id: int, user: UserCreate):
         raise HTTPException(status_code=500, detail="Failed to update user in database")
 
 
-# роут для удаления информации о юзере по ID
 @app.delete("/user/{user_id}", response_model=dict)
 async def delete_user(user_id: int):
     query = "DELETE FROM users WHERE id = :user_id RETURNING id"
